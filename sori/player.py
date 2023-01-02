@@ -1,8 +1,6 @@
 import copy
 import random
 
-import pydub
-
 
 class Player:
     """

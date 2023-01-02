@@ -7,30 +7,42 @@ import time
 import pydub
 import pydub.playback
 
+from sori.player import (
+    RandomPlayer,
+    FixedPlayer,
+    FixedShufflePlayer,
+    DeterministicShufflePlayer,
+    PlaylistShufflePlayer,
+)
+
 
 def main():
-    playlist: dict[str, str] = {}
+    playlist: list[str] = []
     list_path = input()
     for v in os.walk(list_path):
         for song in v[2]:
             path = v[0] + "/" + song
-            playlist[song] = path
+            playlist.append(path)
 
-    q = queue.Queue(4)
+    buffer = queue.Queue(4)
 
-    def player_thread(q: queue.Queue):
+    def audio_thread(q: queue.Queue):
         while True:
-            song, audio = q.get()
-            logging.log(logging.INFO, song)
-            pydub.playback.play(audio)
-            time.sleep(10)
+            music = q.get()
+            pydub.playback.play(music)
+            time.sleep(0.5)
 
-    player = threading.Thread(target=player_thread, args=(q,), daemon=True)
-    player.start()
+    audio = threading.Thread(target=audio_thread, args=(buffer,), daemon=True)
+    audio.start()
 
-    for song, path in playlist.items():
-        audio = pydub.AudioSegment.from_file(path)
-        q.put((song, audio.fade_in(10000).fade_out(10000)))
+    player = FixedPlayer
+
+    for path in player(playlist):
+        try:
+            audio = pydub.AudioSegment.from_file(path)
+        except pydub.exceptions.CouldntDecodeError:
+            logging.log(logging.DEBUG, "Couldn't decode file: " + path)
+        buffer.put(audio.fade_in(10000).fade_out(10000))
 
 
 if __name__ == "__main__":
